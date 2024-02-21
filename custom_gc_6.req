@@ -8,9 +8,9 @@ ucft
         "override_screens"
         "game_testscript"
         "ifs_freeform_battle_autoresolve"
+        "ifs_freeform_battle_mode_autoresolve"
         "ifs_freeform_battle_card_autoresolve"
         "ifs_freeform_main_autoresolve"
-        "ifs_freeform_result_autoresolve"
     }
 
 }

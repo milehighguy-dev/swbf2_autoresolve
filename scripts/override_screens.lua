@@ -20,8 +20,8 @@ if AddIFScreen then
         elseif (ScreenName == "ifs_freeform_battle_card") then
             ScriptCB_DoFile("ifs_freeform_battle_card_autoresolve")
             crs_originalAddIfScreen(tableName, ScreenName)
-        elseif (ScreenName == "ifs_freeform_result") then
-            ScriptCB_DoFile("ifs_freeform_result_autoresolve")
+        elseif (ScreenName == "ifs_freeform_battle_mode") then
+            ScriptCB_DoFile("ifs_freeform_battle_mode_autoresolve")
             crs_originalAddIfScreen(tableName, ScreenName)
         else
             crs_originalAddIfScreen(tableName, ScreenName)
@@ -32,28 +32,6 @@ else
     print("DEBUG: AddIFScreen is not defined yet!")
 end
 
-local gOriginalPushScreen = ScriptCB_PushScreen
-
-ScriptCB_PushScreen = function(screen)
-    print("DEBUG: ScriptCB_PushScreen " .. tostring(screen))
-    if screen then
-        gOriginalPushScreen(screen)
-    else
-        print("DEBUG: ScriptCB_PushScreen: no screen provided. This should not happen?")
-        gOriginalPushScreen()
-    end
-end
-
-local gOriginalSetScreen = ScriptCB_SetIFScreen
-ScriptCB_SetIFScreen = function(screen)
-    if screen then
-        print("DEBUG: ScriptCB_SetIFScreen " .. tostring(screen))
-        gOriginalSetScreen(screen)
-    else
-        print("DEBUG: ScriptCB_SetIFScreen: no screen provided. This should not happen?")
-        gOriginalSetScreen()
-    end
-end
 
 
 
