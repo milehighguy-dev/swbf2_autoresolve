@@ -1,0 +1,14 @@
+ucft
+{
+	REQN
+	{
+		"loc"
+		"english"
+		"spanish"
+		"italian"
+		"french"
+		"german"
+		"uk_english"
+		"japanese"
+	}
+}

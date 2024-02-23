@@ -4,136 +4,6 @@
 --- DateTime: 2/5/2024 7:45 PM
 ---
 
--- add new button to battle screen
-
-local w,h = ScriptCB_GetSafeScreenInfo()
-local screen_w, screen_h, v, widescreen = ScriptCB_GetScreenInfo()
-local action_w = w
-local action_h = h * 0.05
-
-if(gPlatformStr == "PC") then
-    local BackButtonW = 150	-- made wider to fix 9173 - NM 8/25/04
-    local BackButtonH = 25
-
-    local left = BackButtonW * 0.5
-    local right = w - BackButtonW * 0.5
-    local spacing = (right - left) / 3
-
-    ifs_freeform_battle.action = NewIFContainer{
-        ScreenRelativeX = 0.0, -- left
-        ScreenRelativeY = 1.0, -- bottom
-        width = action_w,
-        height = action_h,
-        x = 0,
-        ZPos = 190,
-
-        misc = NewPCIFButton -- NewRoundIFButton
-        {
-            x = right - spacing,
-            btnw = BackButtonW,
-            btnh = BackButtonH,
-            font = "gamefont_medium",
-            string = "ifs.freeform.endturn",
-            tag = "_next",
-        }, -- end of btn
-
-        accept = NewPCIFButton -- NewRoundIFButton
-        {
-            x = right,
-            btnw = BackButtonW,
-            btnh = BackButtonH,
-            font = "gamefont_medium",
-            string = "common.accept",
-            tag = "_accept",
-
-        }, -- end of btn
-
-        autoResolve = NewPCIFButton -- NewRoundIFButton
-        {
-            x = right - spacing,
-            btnw = BackButtonW,
-            btnh = BackButtonH,
-            font = "gamefont_medium",
-            string = "Auto Resolve", --"common.accept",
-            tag = "_autoResolve",
-
-        }, -- end of btn
-
-        win = NewPCIFButton -- NewRoundIFButton
-        {
-            x = right - (2 * spacing),
-            btnw = BackButtonW,
-            btnh = BackButtonH,
-            font = "gamefont_medium",
-            string = "Win", --"common.accept",
-            tag = "_win",
-
-        }, -- end of btn
-
-        back = NewPCIFButton -- NewRoundIFButton
-        {
-            x = left,
-            btnw = BackButtonW,
-            btnh = BackButtonH,
-            font = "gamefont_medium",
-            string = "common.back",
-            tag = "_back",
-
-        }, -- end of btn
-
-        help = NewPCIFButton
-        {
-            x = left + spacing,
-            btnw = BackButtonW,
-            btnh = BackButtonH,
-            font = "gamefont_medium",
-            string = "ifs.freeform.help",
-            tag = "_help",
-        },
-    }
-else
-    ifs_freeform_battle.action = NewIFContainer{
-        ScreenRelativeX = 0.0, -- left
-        ScreenRelativeY = 1.0, -- bottom
-        width = action_w,
-        height = action_h * 2,
-        ZPos = 190,
-
-        misc = NewHelptext {
-            x = w*widescreen,
-            buttonicon = "btnmisc",
-            string = "ifs.freeform.endturn",
-            bRightJustify = 1,
-            y = -34,
-        },
-
-
-        accept = NewHelptext {
-            x = w*widescreen,
-            buttonicon = "btna",
-            string = "common.accept",
-            bRightJustify = 1,
-            y = -15,
-        },
-
-        back = NewHelptext {
-            x = 0,
-            buttonicon = "btnb",
-            string = "common.back",
-            bLeftJustify = 1,
-            y = -15,
-        },
-
-        help = NewHelptext {
-            x = 0,
-            buttonicon = "btnmisc2",
-            string = "ifs.freeform.help",
-            bLeftJustify = 1,
-            y = -34,
-        },
-    }
-end
-
 
 ifs_freeform_battle.Enter = function(this, bFwd)
     gIFShellScreenTemplate_fnEnter(this, bFwd) -- call default enter function
@@ -157,13 +27,27 @@ ifs_freeform_battle.Enter = function(this, bFwd)
     else
         ifs_freeform_SetButtonName( this, "accept", "common.next" )
     end
-    ifs_freeform_SetButtonVis( this, "misc", nil )
     ifs_freeform_SetButtonVis(this, "help", nil)
 
     ---- NEW CODE ===============
-    -- only show the button during fleet battles
+    -- is it a space fleet battle?
     local isFleetBattle = ifs_freeform_main.planetFleet[ifs_freeform_main.planetNext] == 0
-    ifs_freeform_SetButtonVis(this, "autoResolve", isFleetBattle)
+    local showAutoResolveButton = isFleetBattle
+    -- Check remaster mod's database if they set "Auto Resolve For Land Battle" to "Yes"
+    -- otherwise its only for space battles
+    if rema_database.data.ARLandBattle and rema_database.data.ARLandBattle == 2 then
+        print("loaded Auto Resolve For Land Battle")
+        showAutoResolveButton = true
+    end
+    ifs_freeform_SetButtonVis(this, "misc", showAutoResolveButton)
+    local autoResolveBtnName = "ifs.freeform.autoresolve"
+    -- if there is no localization, just use English
+    --if tostring(ScriptCB_ununicode(ScriptCB_getlocalizestr(autoResolveBtnName))) == "[NULL]" then
+    --    autoResolveBtnName = "Auto Resolve"
+    --end
+    --- rename misc to "Auto Resolve"
+    ifs_freeform_SetButtonName( this, "misc", autoResolveBtnName )
+    ---- end new code
 
     -- play appropriate VO messages and display caption and info text
     --if it's a deep space battle
@@ -221,20 +105,14 @@ ifs_freeform_battle.Input_Accept = function(this, joystick)
         if( this.CurButton == "_accept" ) then
             -- purchase the item
         ---- NEW CODE =============
-        elseif( this.CurButton == "_autoResolve" ) then
+        elseif( this.CurButton == "_next" ) then
             -- auto resolve match
-            print("DEBUG: clicked auto resolve")
-            ifs_freeform_battle.useAutoResolve = 1
-        elseif( this.CurButton == "_win" ) then
-            -- auto resolve match
-            print("DEBUG: clicked win")
-            ifs_freeform_battle.win = 1
+            this:Input_Misc(joystick)
+            return
         elseif( this.CurButton == "_back" ) then
             -- handle in Input_Back
             this:Input_Back(joystick)
             return
-            --			elseif( this.CurButton == "_next" ) then
-            --				return
         else
             return
         end
@@ -246,3 +124,13 @@ ifs_freeform_battle.Input_Accept = function(this, joystick)
     ScriptCB_PushScreen("ifs_freeform_battle_mode")
 end -- Input_Accept
 
+-- this is the X button on console, on PC is it space/ right mouse button
+-- Input_Misc2 is the Y button on console
+-- Input_Accept is A Input_Back is B on console
+ifs_freeform_battle.Input_Misc = function(this, joystick)
+    -- set auto resolve flag
+    ifs_freeform_battle.useAutoResolve = 1
+    ifelm_shellscreen_fnPlaySound(this.acceptSound)
+    -- go to the battle mode screen
+    ScriptCB_PushScreen("ifs_freeform_battle_mode")
+end

@@ -4,325 +4,164 @@
 --- DateTime: 2/5/2024 8:38 PM
 ---
 
+---- NEW CODE
+--- append our new code onto the beginning of ifs_freeform_main.Enter
+--- this keeps the mod more compatible with other mods which might change this function
+local originalFreeformMainFunc = ifs_freeform_main.Enter
+
 ifs_freeform_main.Enter = function(this, bFwd)
-    gIFShellScreenTemplate_fnEnter(this, bFwd)
-    print("\n\n ifs_freeform_main.Enter =================== \n\n")
 
-    ---- NEW CODE, check bFwd or Auto Resolve flag
-    if bFwd or ifs_freeform_battle.useAutoResolve or ifs_freeform_battle.win then
-        -- stop any playing movie
-        ifelem_shellscreen_fnStopMovie()
+    if ifs_freeform_battle.useAutoResolve then
+        -- this is important somehow
+        gIFShellScreenTemplate_fnEnter(this, bFwd)
 
-        -- disable split screen
-        this.wasSplit = ScriptCB_GetNumCameras()
-        ScriptCB_SetSplitscreen(nil)
-
-        -- enable metagame rules
-        ScriptCB_SetGameRules("metagame")
-
-        -- clear out saved screen
-        this.curScreen = nil
-
-        -- perform one-time init
-        -- (does nothing if already loaded)
-        this:OneTimeInit(true)
-
-        ScriptCB_SetShellMusic("metagame_menu_music")
-
-        -- set build screens to campaign mode
-        ifs_freeform_purchase_unit:SetFreeformMode()
-        ifs_freeform_purchase_tech:SetFreeformMode()
-
-        -- if metagame state was saved...
-        if ScriptCB_IsMetagameStateSaved() then
-            -- set the active team
-            print("DEBUG: in main 1, set active team")
-            this:SetActiveTeam(this.playerTeam)
-        else
-            -- set initial state
-            this:Start()
-
-            -- get selected planet and fleet for each side
-            this.lastSelected = {}
-            this.lastFleet = {}
-            for planet, team in pairs(this.planetFleet) do
-                if team > 0 then
-                    this.lastSelected[team] = planet
-                    this.lastFleet[team] = planet
-                end
-            end
-            for team, planet in pairs(this.planetBase) do
-                if not this.lastSelected[team] then
-                    this.lastSelected[team] = planet
-                end
-            end
-
-            print("DEBUG: in main 2 setActiveTeam")
-            -- set the active team to that of the starting controller
-            this:SetActiveTeam(this.controllerTeam[this.startController])
-            this.planetNext = this.lastSelected[this.playerTeam]
-
-            -- clear state
-            this.launchMission = nil
-            this.activeBonus = {}
-            this.recentPlanets = {}
-            print("DEBUG: end of main enter")
-        end
-
-        ---- NEW CODE =========
-        local winner = this:GetWinner()
-
-        if winner > 0 then
-            -- apply battle results
-            this:ApplyBattleResult(this.planetNext, winner)
-
-            -- clear battle result
-            ScriptCB_SetLastBattleVictoryValid(false)
-
-            -- go to the result screen
-            ScriptCB_PushScreen("ifs_freeform_result")
-
-            -- trigger save request on next turn
-            this.requestSave = true
-
-            -- if setting up sides...
-        elseif this.setupSides then
-
-            -- go to the side setup screen
-            ScriptCB_PushScreen("ifs_freeform_sides")
-
-            -- otherwise...
-        else
-
-            -- go to the saved screen
-            if this.curScreen == "summary_result" then
-                ScriptCB_PushScreen("ifs_freeform_result")
-                ScriptCB_PushScreen("ifs_freeform_summary")
-            elseif this.curScreen == "summary_fleet" then
-                ScriptCB_PushScreen("ifs_freeform_fleet")
-                ScriptCB_PushScreen("ifs_freeform_summary")
-            elseif this.curScreen == "result" then
-                ScriptCB_PushScreen("ifs_freeform_result")
-            elseif this.curScreen == "battle_card_2" then
-                ifs_freeform_battle_card.defending = 1
-                ScriptCB_PushScreen("ifs_freeform_battle")
-                ScriptCB_PushScreen("ifs_freeform_battle_mode")
-                ScriptCB_PushScreen("ifs_freeform_battle_card")
-            elseif this.curScreen == "battle_card_1" then
-                print("DEBUG: in main, cur screen is battle_card_1")
-                ifs_freeform_battle_card.defending = nil
-                ScriptCB_PushScreen("ifs_freeform_battle")
-                ScriptCB_PushScreen("ifs_freeform_battle_mode")
-                ScriptCB_PushScreen("ifs_freeform_battle_card")
-            elseif this.curScreen == "battle_mode" then
-                ScriptCB_PushScreen("ifs_freeform_battle")
-                ScriptCB_PushScreen("ifs_freeform_battle_mode")
-            elseif this.curScreen == "battle_back" then
-                ScriptCB_PushScreen("ifs_freeform_fleet")
-                ScriptCB_PushScreen("ifs_freeform_battle")
-            elseif this.curScreen == "battle_noback" then
-                ScriptCB_PushScreen("ifs_freeform_battle")
-                -- if the team has a human player...
-            elseif this.joystick then
-                -- go to the fleet screen
-                ScriptCB_PushScreen("ifs_freeform_fleet")
-            else
-                -- go to ai move
-                ScriptCB_PushScreen("ifs_freeform_ai")
-            end
-
-        end
-
-        -- set up build screen
-        ifs_purchase_build_screen()
-
-        -- initialize ai state (HACK)
-        ifs_freeform_ai:Init()
-
-        --			-- create port entities (HACK)
-        --			for planet, port in pairs(this.portPtr) do
-        --				DeleteEntity(port)
-        --			end
-        --			this.portPtr = { }
-        --			for planet, team in pairs(this.planetPort) do
-        --				this.portPtr[planet] = CreateEntity(this.portClass[team], this.modelMatrix[planet][3])
-        --			end
-
-        -- create fleet entities (HACK)
-        for team, list in pairs(this.fleetPtr) do
-            for planet, fleet in pairs(list) do
-                DeleteEntity(fleet)
-            end
-        end
-        this.fleetPtr = { [1] = {}, [2] = {} }
-        for planet, team in pairs(this.planetFleet) do
-            if team == 0 then
-                this.fleetPtr[1][planet] = CreateEntity(this.fleetClass[1], this.modelMatrix[planet][1])
-                this.fleetPtr[2][planet] = CreateEntity(this.fleetClass[2], this.modelMatrix[planet][2])
-            else
-                this.fleetPtr[team][planet] = CreateEntity(this.fleetClass[team], this.modelMatrix[planet][team])
-            end
-        end
-
-        -- select the initial planet
-        this:SelectPlanet(nil, this.planetNext)
-
-        -- set camera offset for each zoom level
-        SetMapCameraOffset(0, 0, 200, 480)
-        SetMapCameraPitch(0, -0.05)
-        SetMapCameraOffset(1, 0, 100, 150)
-        SetMapCameraPitch(1, -0.025)
-
-        -- enable the 3D scene
-        ScriptCB_EnableScene(true)
-    end
-end
-
--- new function to get the winner
--- either from the last battle or from auto-resolve
-ifs_freeform_main.GetWinner = function(this)
-
-    -- if the last battle had a winner...
-    local winner = ScriptCB_GetLastBattleVictory()
-
-    --don't know what soakMode is, but its never true
-    if this.soakMode and ScriptCB_IsMetagameStateSaved() then
-        winner = math.random(2)
-
-        -- determine winner based on weights
-    elseif ifs_freeform_battle.useAutoResolve ~= nil then
+        --reset the flag
         ifs_freeform_battle.useAutoResolve = nil
 
-        -- player is simply the player during the turn, not always the human player
-        local playerTeam = this.playerTeam
-        local enemyTeam = 3 - playerTeam
-        -- the basic weight. The higher this is the other weights matter (bonus cards, units, etc)
-        local startingWeight = 5
-        local playerVictoryWeight = startingWeight
-        local enemyVictoryWeight = startingWeight
+        local winner = this:GetAutoResolveWinner()
 
-        -- humans like to win
-        local humanBonus = 100 --2
-        if ifs_freeform_main.teamController[playerTeam] then
-            print("DEBUG: player is human")
-            playerVictoryWeight = playerVictoryWeight + humanBonus
-        end
-        if ifs_freeform_main.teamController[enemyTeam] then
-            print("DEBUG: enemy is human")
-            enemyVictoryWeight = enemyVictoryWeight + humanBonus
-        end
+        -- apply battle results
+        this:ApplyBattleResult(this.planetNext, winner)
 
-        print("DEBUG: main: auto resolved battle")
+        -- clear battle result
+        ScriptCB_SetLastBattleVictoryValid(false)
 
-        -- add victory weights to team depending on how many units they bought
-        local purchasedUnitWeight = 1
+        -- go to the result screen
+        ScriptCB_PushScreen("ifs_freeform_result")
 
-        for unit, isPurchased in ifs_purchase_unit_owned[playerTeam] do
+        -- trigger save request on next turn
+        this.requestSave = true
 
-            -- unit is only in the table if purchased, but added for safety
-            if isPurchased then
+        return --exit the Enter function, go to result screen
+    end
 
-                print("adding weights for purchased unit for team " .. tostring(playerTeam))
-                -- add basic weight bonus per purchased unit
+    -- fall back to the usual function
+    originalFreeformMainFunc(this, bFwd)
+end
+
+-- new function to get the winner from auto resolve
+ifs_freeform_main.GetAutoResolveWinner = function(this)
+
+    -- player is simply the player during the turn, not always the human player
+    local playerTeam = this.playerTeam
+    local enemyTeam = 3 - playerTeam
+    -- the basic weight. The higher this is the other weights matter (bonus cards, units, etc)
+    local startingWeight = 5
+    local playerVictoryWeight = startingWeight
+    local enemyVictoryWeight = startingWeight
+
+    -- humans like to win
+    local humanBonus = 2
+    -- check remaster mod's database if they set "Humans Always Win" to "Yes"
+    if rema_database.data.ARHumansWin and rema_database.data.ARHumansWin == 2 then
+        print("loaded Humans Always Win")
+        humanBonus = 500
+    end
+
+    if ifs_freeform_main.teamController[playerTeam] then
+        print("DEBUG: player is human")
+        playerVictoryWeight = playerVictoryWeight + humanBonus
+    end
+    if ifs_freeform_main.teamController[enemyTeam] then
+        print("DEBUG: enemy is human")
+        enemyVictoryWeight = enemyVictoryWeight + humanBonus
+    end
+
+    print("DEBUG: main: auto resolved battle")
+
+    -- add victory weights to team depending on how many units they bought
+    local purchasedUnitWeight = 1
+
+    for unit, isPurchased in ifs_purchase_unit_owned[playerTeam] do
+
+        -- unit is only in the table if purchased, but added for safety
+        if isPurchased then
+
+            print("adding weights for purchased unit for team " .. tostring(playerTeam))
+            -- add basic weight bonus per purchased unit
+            playerVictoryWeight = playerVictoryWeight + purchasedUnitWeight
+
+            -- add double bonus for special units
+            if unit == "officer"
+                    or unit == "special" then
                 playerVictoryWeight = playerVictoryWeight + purchasedUnitWeight
-
-                -- add double bonus for special units
-                if unit == "officer"
-                        or unit == "special" then
-                    playerVictoryWeight = playerVictoryWeight + purchasedUnitWeight
-                end
-
             end
+
         end
+    end
 
-        for unit, isPurchased in ifs_purchase_unit_owned[enemyTeam] do
+    for unit, isPurchased in ifs_purchase_unit_owned[enemyTeam] do
 
-            -- unit is only in the table if purchased, but added for safety
-            if isPurchased then
+        -- unit is only in the table if purchased, but added for safety
+        if isPurchased then
 
-                print("adding weights for purchased unit for team " .. tostring(enemyTeam))
-                -- add basic weight bonus per purchased unit
+            print("adding weights for purchased unit for team " .. tostring(enemyTeam))
+            -- add basic weight bonus per purchased unit
+            enemyVictoryWeight = enemyVictoryWeight + purchasedUnitWeight
+
+            -- add double bonus for special units
+            if unit == "officer"
+                    or unit == "special" then
                 enemyVictoryWeight = enemyVictoryWeight + purchasedUnitWeight
-
-                -- add double bonus for special units
-                if unit == "officer"
-                        or unit == "special" then
-                    enemyVictoryWeight = enemyVictoryWeight + purchasedUnitWeight
-                end
-
             end
+
         end
+    end
 
-        for team, bonus in pairs(this.activeBonus) do
+    for team, bonus in pairs(this.activeBonus) do
 
-            for index, tech in ifs_purchase_tech_table do
-                if tech.bonus == bonus then
-                    for _, hint in ipairs(tech.hints) do
-                        if string.find(ifs_freeform_main.launchMission, hint[1]) then
-                            -- bonus card weights are found in ifs_purchase_tech_table_freeform in ifs_freeform_purchase_tech.lua
-                            -- assigned to the above ifs_purchase_tech_table in SetFreeformMode in ifs_freeform_main.Enter
-                            local bonusWeight = hint[2]
-                            print("DEBUG: team " .. tostring(team) .. " bonus " .. tostring(bonus) .. " " .. tostring(bonusWeight))
-                            if team == playerTeam then
-                                playerVictoryWeight = playerVictoryWeight + bonusWeight
-                            else
-                                enemyVictoryWeight = enemyVictoryWeight + bonusWeight
-                            end
-                            break
+        for index, tech in ifs_purchase_tech_table do
+            if tech.bonus == bonus then
+                for _, hint in ipairs(tech.hints) do
+                    if string.find(ifs_freeform_main.launchMission, hint[1]) then
+                        -- bonus card weights are found in ifs_purchase_tech_table_freeform in ifs_freeform_purchase_tech.lua
+                        -- assigned to the above ifs_purchase_tech_table in SetFreeformMode in ifs_freeform_main.Enter
+                        local bonusWeight = hint[2]
+                        print("DEBUG: team " .. tostring(team) .. " bonus " .. tostring(bonus) .. " " .. tostring(bonusWeight))
+                        if team == playerTeam then
+                            playerVictoryWeight = playerVictoryWeight + bonusWeight
+                        else
+                            enemyVictoryWeight = enemyVictoryWeight + bonusWeight
                         end
+                        break
                     end
                 end
             end
         end
+    end
 
-        local planetBaseVictoryWeight = 5
-        print("DEBUG: is player's base " .. tostring(this.planetBase[playerTeam] == this.planetNext))
-        if this.planetBase[playerTeam] == this.planetNext then
-            --planet is player's base
-            playerVictoryWeight = playerVictoryWeight + planetBaseVictoryWeight
-        end
-        print("DEBUG: is enemy's base " .. tostring(this.planetBase[enemyTeam] == this.planetNext))
-        if this.planetBase[enemyTeam] == this.planetNext then
-            --planet is enemy's base
-            enemyVictoryWeight = enemyVictoryWeight + planetBaseVictoryWeight
-        end
+    local planetBaseVictoryWeight = 5
+    print("DEBUG: is player's base " .. tostring(this.planetBase[playerTeam] == this.planetNext))
+    if this.planetBase[playerTeam] == this.planetNext then
+        --planet is player's base
+        playerVictoryWeight = playerVictoryWeight + planetBaseVictoryWeight
+    end
+    print("DEBUG: is enemy's base " .. tostring(this.planetBase[enemyTeam] == this.planetNext))
+    if this.planetBase[enemyTeam] == this.planetNext then
+        --planet is enemy's base
+        enemyVictoryWeight = enemyVictoryWeight + planetBaseVictoryWeight
+    end
 
-        local totalWeight = playerVictoryWeight + enemyVictoryWeight
-        local rand = math.random(1, totalWeight)
+    local totalWeight = playerVictoryWeight + enemyVictoryWeight
+    local rand = math.random(1, totalWeight)
 
-        print("\n\nDEBUG: playerTeam weight: " .. tostring(playerVictoryWeight)
-                .. "\n      enemyTeam weight " .. tostring(enemyVictoryWeight) .. "\n")
-        print("DEBUG: total weight " .. tostring(totalWeight))
-        print("DEBUG: choice is " .. tostring(rand))
+    print("\n\nDEBUG: playerTeam weight: " .. tostring(playerVictoryWeight)
+            .. "\n      enemyTeam weight " .. tostring(enemyVictoryWeight) .. "\n")
+    print("DEBUG: total weight " .. tostring(totalWeight))
+    print("DEBUG: choice is " .. tostring(rand))
 
-        print("is it a fleet battle? " .. tostring(this.planetFleet[this.planetNext] == 0))
-        --determine the winner based on weighting
-        if rand > playerVictoryWeight then
-            winner = enemyTeam
-            print("DEBUG: enemy wins")
-        else
-            winner = playerTeam
-            print("DEBUG: player wins")
-        end
+    print("is it a fleet battle? " .. tostring(this.planetFleet[this.planetNext] == 0))
 
-        --if you press the "win" button
-    elseif ifs_freeform_battle.win ~= nil then
-        ifs_freeform_battle.win = nil
+    --default winner
+    local winner = 1
 
-        print("pressed win button, determining winner")
-        -- player is simply the player during the turn, not always the human player
-        local playerTeam = this.playerTeam
-        local enemyTeam = 3 - playerTeam
-        print("current player team is " .. tostring(playerTeam) .. " " .. tostring(this.playerSide))
-        print("current enemy team is " .. tostring(enemyTeam) .. " " .. tostring(this.otherSide))
-        print("is defending? " .. tostring(ifs_freeform_battle_card.defending))
-        print("is human player? " .. tostring(this.joystick))
-        if ifs_freeform_main.teamController[playerTeam] ~= nil then
-            winner = playerTeam
-        else
-            winner = enemyTeam
-        end
-
+    --determine the winner based on weighting
+    if rand > playerVictoryWeight then
+        winner = enemyTeam
+        print("DEBUG: enemy wins")
+    else
+        winner = playerTeam
+        print("DEBUG: player wins")
     end
 
     return winner

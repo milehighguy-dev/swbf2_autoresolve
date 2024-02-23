@@ -6,53 +6,41 @@
 
 ifs_freeform_battle_card.Next = function(this)
 
-    print("\n\n ifs_freeform_battle_card.Next =============")
-
     if this.defending then
         -- switch to the attacker
         this.defending = nil
-        print("DEBUG: in battle card, switching team to attacker " .. tostring(ifs_freeform_main.teamCode[3 - ifs_freeform_main.playerTeam]))
         ifs_freeform_main:SetActiveTeam(3 - ifs_freeform_main.playerTeam)
+
+        ---- NEW CODE =============
+        if ifs_freeform_battle.useAutoResolve then
+
+            -- go back to main to get the result of the battle
+            ScriptCB_PopScreen("ifs_freeform_main")
+            return -- exit this function
+        end
 
         -- restore split screen
         ScriptCB_SetSplitscreen(ifs_freeform_main.wasSplit)
 
-        print("DEBUG: saving state")
         -- save state
         ifs_freeform_main:SaveState()
 
-        print("finished saving \n\n")
-
-        print("DEBUG: ifs_freeform_battle_card: saving setup")
         -- save mission setup
         ifs_freeform_main:SaveMissionSetup()
-        print("DEBUG: ifs_freeform_battle_card: finished saving setup \n\n")
-
 
         -- if in soak mode...
         if ifs_freeform_main.soakMode then
             -- enter the selected mission as a demo
             ScriptCB_LaunchDemo(ifs_freeform_main.launchMission)
-
-            ---- NEW CODE =============
-        elseif ifs_freeform_battle.useAutoResolve or ifs_freeform_battle.win then
-
-            ScriptCB_SetLastBattleVictoryValid(false) -- there was no battle so invalidate it
-
-            -- go to the next turn
-            print("DEBUG: doing autoresolve -> main")
-            ScriptCB_PopScreen("ifs_freeform_main")
         else
             -- enter the selected mission
             ScriptCB_EnterMission()
         end
     else
-        print("DEBUG: in battle card, switching team to defender " .. tostring(ifs_freeform_main.teamCode[3 - ifs_freeform_main.playerTeam]))
         -- switch to the defender
         this.defending = true
         ifs_freeform_main:SetActiveTeam(3 - ifs_freeform_main.playerTeam)
 
-        print("Re-Entering as the defender ==========")
         -- re-enter as the defender
         ScriptCB_PushScreen("ifs_freeform_battle_card")
     end

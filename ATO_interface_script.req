@@ -1,0 +1,12 @@
+ucft
+{
+	REQN
+	{
+		"script"
+		"ATO_interface_script"
+        "ifs_freeform_battle_autoresolve"
+        "ifs_freeform_battle_mode_autoresolve"
+        "ifs_freeform_battle_card_autoresolve"
+        "ifs_freeform_main_autoresolve"
+	}
+}
